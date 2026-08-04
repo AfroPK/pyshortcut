@@ -1,0 +1,22 @@
+# PyShortcut readme-ai ignore — exclude generated/build artifacts from README analysis
+.git
+.gitignore
+node_modules
+dist
+src-tauri/target
+src-tauri/gen
+*.log
+*.lock
+package-lock.json
+Cargo.lock
+.vscode
+__pycache__
+*.pyc
+*.exe
+*.msi
+*.dll
+*.pdb
+*.ico
+*.icns
+*.png
+*.svg
