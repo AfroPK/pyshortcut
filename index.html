@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PyShortcut</title>
+    <script type="module" src="/src/main.ts" defer></script>
+  </head>
+  <body>
+    <div id="app" class="flex h-screen flex-col overflow-hidden">
+      <!-- Title bar (drag region) -->
+      <header
+        data-tauri-drag-region
+        class="flex items-center justify-between border-b border-white/5 px-4 py-3"
+      >
+        <div data-tauri-drag-region class="flex items-center gap-2">
+          <span
+            class="grid h-6 w-6 place-items-center rounded-md bg-neon/15 text-[11px] font-bold text-neon"
+          >
+            ⚡
+          </span>
+          <h1 data-tauri-drag-region class="text-sm font-semibold tracking-tight">
+            PyShortcut
+          </h1>
+        </div>
+        <button
+          id="close-btn"
+          class="grid h-6 w-6 place-items-center rounded-md text-muted transition hover:bg-red-500/20 hover:text-red-400"
+          title="Close"
+        >
+          ✕
+        </button>
+      </header>
+
+      <main class="flex flex-1 flex-col gap-4 overflow-y-auto px-5 py-4">
+        <!-- Target file -->
+        <section>
+          <h2 class="mb-2 text-[11px] font-medium uppercase tracking-widest text-muted">
+            Target
+          </h2>
+          <button
+            id="drop-zone"
+            type="button"
+            class="flex w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-edge bg-panel px-4 py-8 text-center transition hover:border-neon/60 hover:bg-panel/80"
+          >
+            <span id="dz-icon" class="text-xl">📁</span>
+            <span id="dz-title" class="text-sm font-medium">Choose a file or drop it here</span>
+            <span id="dz-sub" class="text-xs text-muted">exe · script · shortcut target</span>
+          </button>
+          <p id="file-status" class="mt-2 hidden truncate text-xs text-muted"></p>
+        </section>
+
+        <!-- Destination -->
+        <section>
+          <h2 class="mb-2 text-[11px] font-medium uppercase tracking-widest text-muted">
+            Destination
+          </h2>
+          <div id="dest-list" class="grid grid-cols-3 gap-2"></div>
+        </section>
+
+        <!-- Format -->
+        <section>
+          <h2 class="mb-2 text-[11px] font-medium uppercase tracking-widest text-muted">
+            Format
+          </h2>
+          <div id="format-list" class="grid grid-cols-3 gap-2"></div>
+          <div
+            id="format-hint"
+            class="mt-2 rounded-lg border border-white/5 bg-panel-2 px-3 py-2 text-xs text-muted"
+          ></div>
+        </section>
+
+        <!-- Preview -->
+        <section id="preview" class="hidden">
+          <h2 class="mb-2 text-[11px] font-medium uppercase tracking-widest text-muted">
+            Preview
+          </h2>
+          <code
+            id="preview-path"
+            class="block rounded-lg border border-white/5 bg-black/30 px-3 py-2 text-xs text-neon break-all"
+          ></code>
+        </section>
+
+        <!-- Create -->
+        <div class="mt-auto pt-2">
+          <button
+            id="create-btn"
+            disabled
+            class="w-full rounded-xl bg-neon px-4 py-3 text-sm font-semibold text-black shadow-[0_0_20px_-4px_rgba(34,211,238,0.6)] transition enabled:hover:brightness-110 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Create Shortcut
+          </button>
+        </div>
+      </main>
+    </div>
+
+    <!-- Toast -->
+    <div
+      id="toast"
+      class="pointer-events-none fixed left-1/2 top-4 z-50 hidden -translate-x-1/2 rounded-lg border px-4 py-2 text-sm shadow-lg"
+    ></div>
+  </body>
+</html>
