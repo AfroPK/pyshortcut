@@ -1,57 +1,82 @@
 name: CI
 
-# Windows-only tool (tkinter + WScript.Shell + PyInstaller) — runs on windows-latest.
-# Runs on EVERY push/PR update (not just the first one) so a green check on an
-# older commit never masks a break on the latest fix.
+# Tauri 2 app (Rust + vanilla TS). Runs on windows-latest (Windows-only tool).
+# Runs on EVERY push/PR update so a green check on an older commit never masks a
+# break on the latest fix.
 on:
   push:
     branches: [main]
   pull_request:
-    types: [opened, synchronize, reopened]   # runs on every PR commit update
+    types: [opened, synchronize, reopened]
 
 jobs:
   lint-test:
-    name: Lint + Compile + Test
+    name: Backend test + clippy
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Install Rust (MSVC toolchain)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
         with:
-          python-version: "3.11"
-          cache: pip
+          path: |
+            ~/.cargo/registry
+            src-tauri/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Install dev deps
-        run: pip install -r requirements-dev.txt
+      - name: cargo test
+        run: cargo test --manifest-path src-tauri/Cargo.toml
 
-      - name: Lint (ruff)
-        run: ruff check .
+      - name: cargo clippy
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 
-      - name: Compile check
-        run: python -m py_compile PyShortcut.py
-
-      - name: Test (pytest)
-        run: pytest -q
-
-  build:
-    name: Build exe (PyInstaller)
+  frontend:
+    name: Frontend typecheck + test + build
     runs-on: windows-latest
-    needs: lint-test
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-node@v4
         with:
-          python-version: "3.11"
+          node-version: "24"
+          cache: npm
 
-      - name: Install build deps
-        run: pip install -r requirements-dev.txt
+      - name: Install deps
+        run: npm ci
 
-      - name: Build PyShortcut.exe
-        run: pyinstaller PyShortcut.spec
+      - name: Frontend tests (vitest)
+        run: npm test
 
-      - name: Upload artifact
+      - name: Frontend build (tsc + vite)
+        run: npm run build
+
+  bundle:
+    name: Build release exe
+    runs-on: windows-latest
+    needs: [lint-test, frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Tauri build (release + installer)
+        run: npm run tauri build
+
+      - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PyShortcut-exe
-          path: dist/PyShortcut.exe
+          name: PyShortcut-installer
+          path: |
+            src-tauri/target/release/PyShortcut.exe
+            src-tauri/target/release/bundle/nsis/*-setup.exe
