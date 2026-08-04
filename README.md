@@ -159,7 +159,3 @@ cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets
 ## License
 
 Released under the [MIT](LICENSE) license.
-
----
-
-*README structure generated with [readme-ai](https://github.com/eli64s/readme-ai); prose authored for this project.*
