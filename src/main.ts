@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { open } from "@tauri-apps/plugin-dialog";
+import { homeDir } from "@tauri-apps/api/path";
 import {
   DESTINATIONS,
   FORMATS,
@@ -14,9 +15,10 @@ import {
 let targetPath: string | null = null;
 let destination: Destination = "programs";
 let format: Format = "lnk";
+let home: string = "C:\\Users"; // fallback; replaced by real homeDir() at init
 
 // ----- DOM refs -----
-const dropZone = document.getElementById("drop-zone") as HTMLLabelElement;
+const dropZone = document.getElementById("drop-zone") as HTMLButtonElement;
 const dzTitle = document.getElementById("dz-title") as HTMLSpanElement;
 const dzSub = document.getElementById("dz-sub") as HTMLSpanElement;
 const dzIcon = document.getElementById("dz-icon") as HTMLSpanElement;
@@ -52,7 +54,7 @@ function updatePreview() {
     preview.classList.add("hidden");
     return;
   }
-  const p = previewShortcutPath(targetPath, destination, format, "");
+  const p = previewShortcutPath(targetPath, destination, format, home);
   previewPath.textContent = p ?? "";
   preview.classList.remove("hidden");
 }
@@ -179,3 +181,11 @@ document.getElementById("close-btn")?.addEventListener("click", () => {
 renderDestinations();
 renderFormats();
 updateFormatHint();
+homeDir()
+  .then((h) => {
+    home = h;
+    updatePreview();
+  })
+  .catch(() => {
+    /* keep fallback */
+  });

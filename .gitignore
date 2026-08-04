@@ -38,3 +38,4 @@ src-tauri/gen/schemas/
 *.sln
 *.sw?
 Thumbs.db
+.review-diff.txt
