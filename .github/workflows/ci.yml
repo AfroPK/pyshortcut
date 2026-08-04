@@ -1,0 +1,57 @@
+name: CI
+
+# Windows-only tool (tkinter + WScript.Shell + PyInstaller) — runs on windows-latest.
+# Runs on EVERY push/PR update (not just the first one) so a green check on an
+# older commit never masks a break on the latest fix.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]   # runs on every PR commit update
+
+jobs:
+  lint-test:
+    name: Lint + Compile + Test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dev deps
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Compile check
+        run: python -m py_compile PyShortcut.py
+
+      - name: Test (pytest)
+        run: pytest -q
+
+  build:
+    name: Build exe (PyInstaller)
+    runs-on: windows-latest
+    needs: lint-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build deps
+        run: pip install -r requirements-dev.txt
+
+      - name: Build PyShortcut.exe
+        run: pyinstaller PyShortcut.spec
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PyShortcut-exe
+          path: dist/PyShortcut.exe

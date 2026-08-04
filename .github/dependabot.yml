@@ -1,0 +1,16 @@
+# Dependabot — automatically opens PRs to update your dependencies
+# and GitHub Actions. Keeps your pinned versions from going stale.
+version: 2
+updates:
+  # Adjust the package ecosystem + directory to match THIS project.
+  - package-ecosystem: "npm"          # npm | pip | gomod | nuget | cargo | github-actions
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    # Raise dependency version updates as PRs — review & merge through your normal gate.
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

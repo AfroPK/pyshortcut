@@ -1,0 +1,30 @@
+# Internal workflow / guardrail files — kept LOCAL for the team, NOT pushed publicly.
+# These drive the local dev process (and any internal agents) but are not part of the
+# shipped product, so they are intentionally excluded from the public remote.
+#
+# NOTE: removing these from .gitignore would make them public. Keep them here.
+AGENTS.md
+SPEC.md
+ROADMAP.md
+TASKS.md
+
+# CI workflow lives under .github/workflows/ and IS pushed publicly so GitHub
+# Actions can auto-run lint/test/build on every push and PR. Do NOT ignore it —
+# this is your automatic safety net. Remove nothing below.
+# (Guardrail docs above stay ignored; CI config ships.)
+
+# --- Standard project ignores (add your stack's ignores below) ---
+# Node
+# node_modules/
+# dist/
+# Python
+__pycache__/
+*.pyc
+.venv/
+# PyInstaller build + dist artifacts
+build/
+dist/
+*.spec.bak
+# Editor / OS
+.DS_Store
+Thumbs.db

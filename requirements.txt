@@ -1,0 +1,6 @@
+# Runtime deps — pinned versions (verified for Python 3.11 / Windows)
+pywin32==310
+winshell==0.6
+
+# A .whl marker for tkinter is NOT required — tkinter ships with the standard
+# CPython Windows installer. Install Python with "tcl/tk and IDLE" checked.
