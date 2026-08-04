@@ -49,6 +49,60 @@ pub fn shortcut_stem(filepath: &str) -> String {
     base
 }
 
+/// Windows reserved device names that can never be used as a file name.
+const RESERVED_NAMES: &[&str] = &[
+    "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
+    "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+];
+
+/// Characters that are illegal in Windows file names.
+fn has_illegal_chars(s: &str) -> bool {
+    s.contains('<')
+        || s.contains('>')
+        || s.contains(':')
+        || s.contains('"')
+        || s.contains('/')
+        || s.contains('\\')
+        || s.contains('|')
+        || s.contains('?')
+        || s.contains('*')
+}
+
+/// Validate the shortcut name (derived from the target's stem). Returns `Err`
+/// with a clear message if it cannot be used to name a Windows shortcut file.
+pub fn validate_shortcut_name(stem: &str) -> Result<(), String> {
+    let trimmed = stem.trim();
+    if trimmed.is_empty() {
+        return Err("Selected file has no usable name for a shortcut.".into());
+    }
+    if has_illegal_chars(trimmed) {
+        return Err(format!(
+            "Shortcut name contains characters not allowed by Windows: `{}`",
+            trimmed
+        ));
+    }
+    // Windows treats these reserved names as device names even with extensions.
+    let core = trimmed.split('.').next().unwrap_or(trimmed);
+    if RESERVED_NAMES.contains(&core.to_ascii_uppercase().as_str()) {
+        return Err(format!("`{trimmed}` is a reserved Windows device name."));
+    }
+    Ok(())
+}
+
+/// Rough Windows MAX_PATH guard — reject paths that would silently fail on
+/// systems without long-path support enabled (classic 260-char limit).
+pub const MAX_PATH: usize = 260;
+pub fn check_path_length(p: &str) -> Result<(), String> {
+    if p.len() > MAX_PATH {
+        return Err(format!(
+            "Destination path is too long ({} chars; Windows limit ~{}). Pick a shorter path.",
+            p.len(),
+            MAX_PATH
+        ));
+    }
+    Ok(())
+}
+
 /// Start Menu Programs directory for the current user.
 pub fn start_menu_programs_dir() -> PathBuf {
     home_dir()
@@ -140,23 +194,24 @@ pub fn create_shortcut(
 ) -> Result<CreateResult, String> {
     let target = PathBuf::from(filepath);
     if !target.is_file() {
-        return Err(format!("Target file not found: {}", filepath));
+        return Err(format!("Target file not found: {filepath}"));
     }
+    // Hardening: validate the derived shortcut name and output path length.
+    let stem = shortcut_stem(filepath);
+    validate_shortcut_name(&stem)?;
+
     let target_dir = resolve_destination_dir(filepath, destination);
     std::fs::create_dir_all(&target_dir)
         .map_err(|e| format!("Cannot create destination dir: {e}"))?;
     let out_path = shortcut_path(&target_dir, filepath, format);
+    check_path_length(&out_path.to_string_lossy())?;
 
     match format {
         Format::Lnk => write_link_file(&target, &out_path)?,
-        Format::Bat => {
-            std::fs::write(&out_path, bat_file_contents(filepath))
-                .map_err(|e| format!("Failed to write .bat: {e}"))?
-        }
-        Format::Vbs => {
-            std::fs::write(&out_path, vbs_file_contents(filepath))
-                .map_err(|e| format!("Failed to write .vbs: {e}"))?
-        }
+        Format::Bat => std::fs::write(&out_path, bat_file_contents(filepath))
+            .map_err(|e| format!("Failed to write .bat: {e}"))?,
+        Format::Vbs => std::fs::write(&out_path, vbs_file_contents(filepath))
+            .map_err(|e| format!("Failed to write .vbs: {e}"))?,
     }
 
     Ok(CreateResult {
@@ -170,8 +225,8 @@ pub fn create_shortcut(
 fn write_link_file(target: &Path, out_path: &Path) -> Result<(), String> {
     use windows::core::{Interface, HSTRING};
     use windows::Win32::System::Com::{
-        CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED,
-        IPersistFile,
+        CoCreateInstance, CoInitializeEx, IPersistFile, CLSCTX_INPROC_SERVER,
+        COINIT_APARTMENTTHREADED,
     };
     use windows::Win32::UI::Shell::{IShellLinkW, ShellLink};
 
@@ -185,11 +240,10 @@ fn write_link_file(target: &Path, out_path: &Path) -> Result<(), String> {
             return Err(format!("CoInitializeEx failed: {hr:?}"));
         }
 
-        let link: IShellLinkW =
-            match CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER) {
-                Ok(l) => l,
-                Err(e) => return Err(format!("CoCreateInstance(ShellLink) failed: {e}")),
-            };
+        let link: IShellLinkW = match CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER) {
+            Ok(l) => l,
+            Err(e) => return Err(format!("CoCreateInstance(ShellLink) failed: {e}")),
+        };
 
         link.SetPath(&HSTRING::from(target.to_string_lossy().as_ref()))
             .map_err(|e| format!("SetPath failed: {e}"))?;
@@ -197,8 +251,9 @@ fn write_link_file(target: &Path, out_path: &Path) -> Result<(), String> {
         link.SetWorkingDirectory(&HSTRING::from(workdir.to_string_lossy().as_ref()))
             .map_err(|e| format!("SetWorkingDirectory failed: {e}"))?;
 
-        let persist: IPersistFile =
-            link.cast().map_err(|e| format!("QI IPersistFile failed: {e}"))?;
+        let persist: IPersistFile = link
+            .cast()
+            .map_err(|e| format!("QI IPersistFile failed: {e}"))?;
         persist
             .Save(&HSTRING::from(out_path.to_string_lossy().as_ref()), true)
             .map_err(|e| format!("IPersistFile.Save failed: {e}"))?;
@@ -261,5 +316,50 @@ mod tests {
     fn create_returns_error_for_missing_target() {
         let err = create_shortcut(r"C:\does\not\exist.exe", Destination::SameDir, Format::Bat);
         assert!(err.is_err());
+    }
+
+    // --- Hardening: validate_shortcut_name ---
+    #[test]
+    fn name_valid_normal() {
+        assert!(validate_shortcut_name("MyApp").is_ok());
+    }
+
+    #[test]
+    fn name_empty_rejected() {
+        assert!(validate_shortcut_name("").is_err());
+        assert!(validate_shortcut_name("   ").is_err());
+    }
+
+    #[test]
+    fn name_illegal_chars_rejected() {
+        for illegal in ["a:b", "a/b", "a*b", "a?b", "a<b", "a|b"] {
+            assert!(
+                validate_shortcut_name(illegal).is_err(),
+                "{illegal} should be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn name_reserved_device_rejected() {
+        // Even with an extension, Windows treats these as device names.
+        for reserved in ["CON", "con", "NUL.txt", "PRN", "COM1"] {
+            assert!(
+                validate_shortcut_name(reserved).is_err(),
+                "{reserved} should be rejected"
+            );
+        }
+    }
+
+    // --- Hardening: check_path_length ---
+    #[test]
+    fn path_length_under_limit_ok() {
+        assert!(check_path_length(r"C:\short\path\MyApp.exe").is_ok());
+    }
+
+    #[test]
+    fn path_length_over_limit_rejected() {
+        let long = "C:\\".to_string() + &"a".repeat(300) + ".exe";
+        assert!(check_path_length(&long).is_err());
     }
 }
