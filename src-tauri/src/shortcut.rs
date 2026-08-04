@@ -170,12 +170,16 @@ pub fn create_shortcut(
 fn write_link_file(target: &Path, out_path: &Path) -> Result<(), String> {
     use windows::core::{Interface, HSTRING};
     use windows::Win32::System::Com::{
-        CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED, IPersistFile,
+        CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED,
+        IPersistFile,
     };
     use windows::Win32::UI::Shell::{IShellLinkW, ShellLink};
 
     unsafe {
-        let hr = CoInitializeEx(None, COINIT_MULTITHREADED);
+        // Tauri's main thread already initializes COM as STA; match that apartment so
+        // CoInitializeEx returns S_FALSE ("already initialized") rather than flipping
+        // to MTA and failing with RPC_E_CHANGED_MODE (0x80010106).
+        let hr = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
         // OK(0) or S_FALSE(1) — anything else is a failure.
         if !(hr.is_ok() || hr.0 == 1) {
             return Err(format!("CoInitializeEx failed: {hr:?}"));

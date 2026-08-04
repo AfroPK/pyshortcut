@@ -38,3 +38,29 @@ body {
 [data-tauri-drag-region] input {
   -webkit-app-region: no-drag;
 }
+
+/* ===== Themed scrollbars (WebView2 / Chromium) ===== */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2a2f3d transparent;
+}
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: #2a2f3d;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: #3b4256;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
